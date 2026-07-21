@@ -2,7 +2,7 @@ name: Deploy Next.js site to Pages
 
 on:
   push:
-    branches: ["master"] # Change to "master" if that's your main branch name
+    branches: ["master"] # Change to "master" if that is your main branch name
 
 permissions:
   contents: read
@@ -29,6 +29,9 @@ jobs:
         run: npm ci
 
       - name: Build Next.js app
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
         run: npm run build
 
       - name: Upload artifact
