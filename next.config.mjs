@@ -2,8 +2,8 @@
 const isProd = process.env.NODE_ENV === 'production';
 
 const nextConfig = {
-  output: 'export',
-  basePath: isProd ? '/invoice-app' : '',
+  // output: 'export',
+  // basePath: isProd ? '/invoice-app' : '',
   images: {
     unoptimized: true,
   },

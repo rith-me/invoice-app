@@ -10,8 +10,31 @@ async function loadTable(table) {
   return (data || []).map((row) => row.data);
 }
 
+// export async function loadAll() {
+//   const out = { clients: [], invoices: [], settings: DEFAULT_SETTINGS, items: [] };
+//   try {
+//     out.clients = await loadTable("clients");
+//   } catch (e) { console.error(e); }
+//   try {
+//     out.invoices = await loadTable("invoices");
+//   } catch (e) { console.error(e); }
+//   try {
+//     const { data, error } = await supabase.from("settings").select("*").eq("id", 1).maybeSingle();
+//     if (error) throw error;
+//     if (data) out.settings = { ...DEFAULT_SETTINGS, ...data.data };
+//   } catch (e) { console.error("load settings:", e); }
+//   try {
+//     out.items = await loadTable("items");
+//   } catch (e) { console.error(e); }
+//   return out;
+// }
+
+// Full-replace sync: deletes everything currently in the table and re-inserts the
+// given list. Simple and safe for a single-user / small-team app; if you later need
+// multiple people editing at once, switch this to incremental upsert + delete-by-diff.
+
 export async function loadAll() {
-  const out = { clients: [], invoices: [], settings: DEFAULT_SETTINGS, items: [] };
+  const out = { clients: [], invoices: [], settings: DEFAULT_SETTINGS, items: [], expenses: [] };
   try {
     out.clients = await loadTable("clients");
   } catch (e) { console.error(e); }
@@ -26,12 +49,12 @@ export async function loadAll() {
   try {
     out.items = await loadTable("items");
   } catch (e) { console.error(e); }
+  try {
+    out.expenses = await loadTable("expenses");
+  } catch (e) { console.error(e); }
   return out;
 }
 
-// Full-replace sync: deletes everything currently in the table and re-inserts the
-// given list. Simple and safe for a single-user / small-team app; if you later need
-// multiple people editing at once, switch this to incremental upsert + delete-by-diff.
 async function saveTable(table, rows) {
   try {
     const { error: delErr } = await supabase.from(table).delete().not("id", "is", null);
@@ -52,4 +75,8 @@ export async function saveSettings(settings) {
     const { error } = await supabase.from("settings").upsert({ id: 1, data: settings });
     if (error) throw error;
   } catch (e) { console.error("save settings:", e.message || e); }
+}
+
+export async function saveExpenses(expenses) { 
+  await saveTable("expenses", expenses); 
 }
