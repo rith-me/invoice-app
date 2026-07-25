@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useMemo } from "react";
-import { Plus, FileText, TrendingUp, AlertTriangle, Percent } from "lucide-react";
+import { Plus, FileText, TrendingUp, AlertTriangle, Percent, Receipt } from "lucide-react";
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { calcTotals, effectiveStatus, money, num, monthKey, monthLabel, lastNMonthKeys, STATUS } from "@/lib/helpers";
 import { Badge, KpiCard, EmptyState, panelTitleClass } from "@/components/ui/Primitives";
 
-export function Dashboard({ invoices, onOpen, onNewInvoice, onNewQuotation, onNewReceipt }) {
+export function Dashboard({ invoices, expenses, onOpen, onNewInvoice, onNewQuotation, onNewReceipt }) {
   const data = useMemo(() => {
     const invOnly = invoices.filter((i) => (i.docType || "invoice") === "invoice");
     const quotesOnly = invoices.filter((i) => i.docType === "quotation");
@@ -38,9 +38,11 @@ export function Dashboard({ invoices, onOpen, onNewInvoice, onNewQuotation, onNe
     const decided = quoteAccepted + quoteDeclined;
     const acceptRate = decided ? Math.round((quoteAccepted / decided) * 100) : null;
 
+    const totalExpenses = (expenses || []).reduce((s, e) => s + num(e.amount), 0);
+
     const months = lastNMonthKeys(6);
     const monthData = months.map((key) => {
-      let invoiced = 0, collected = 0;
+      let invoiced = 0, collected = 0, spent = 0;
       invOnly.forEach((inv) => {
         if (monthKey(inv.issueDate) === key) {
           const { total } = calcTotals(inv);
@@ -48,7 +50,8 @@ export function Dashboard({ invoices, onOpen, onNewInvoice, onNewQuotation, onNe
           if (inv.status === "paid") collected += total;
         }
       });
-      return { month: monthLabel(key), Invoiced: +invoiced.toFixed(2), Collected: +collected.toFixed(2) };
+      (expenses || []).forEach((e) => { if (monthKey(e.date) === key) spent += num(e.amount); });
+      return { month: monthLabel(key), Invoiced: +invoiced.toFixed(2), Collected: +collected.toFixed(2), Expenses: +spent.toFixed(2) };
     });
 
     const pieData = Object.entries(statusAmounts)
@@ -62,9 +65,12 @@ export function Dashboard({ invoices, onOpen, onNewInvoice, onNewQuotation, onNe
       .slice(0, 6);
 
     const totalReceipted = receiptsOnly.reduce((s, r) => s + num(r.amountReceived), 0);
+    const netProfit = totalPaid - totalExpenses;
 
-    return { totalPaid, totalOutstanding, totalOverdue, quoteOpenValue, acceptRate, quoteCount: quotesOnly.length, monthData, pieData, topClients, recent, totalReceipted, receiptCount: receiptsOnly.length };
-  }, [invoices]);
+    return { totalPaid, totalOutstanding, totalOverdue, quoteOpenValue, acceptRate, quoteCount: quotesOnly.length, monthData, pieData, topClients, recent, totalReceipted, receiptCount: receiptsOnly.length, totalExpenses, netProfit };
+  }, [invoices, expenses]);
+
+  const hasData = invoices.length > 0 || (expenses || []).length > 0;
 
   return (
     <div>
@@ -83,11 +89,11 @@ export function Dashboard({ invoices, onOpen, onNewInvoice, onNewQuotation, onNe
         </div>
       </div>
 
-      {invoices.length === 0 ? (
+      {!hasData ? (
         <EmptyState title="Nothing to report yet" body="Create an invoice or quotation and your numbers will show up here." action={{ label: "New invoice", onClick: onNewInvoice }} />
       ) : (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3 mb-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3 mb-3">
             <KpiCard icon={<TrendingUp size={15} />} label="Paid (all time)" value={money(data.totalPaid)} tone="#3D6B5C" />
             <KpiCard icon={<FileText size={15} />} label="Outstanding" value={money(data.totalOutstanding)} tone="#1B2A3D" />
             <KpiCard icon={<AlertTriangle size={15} />} label="Overdue" value={money(data.totalOverdue)} tone="#B5482F" />
@@ -101,9 +107,14 @@ export function Dashboard({ invoices, onOpen, onNewInvoice, onNewQuotation, onNe
             <KpiCard icon={<FileText size={15} />} label="Receipted" value={money(data.totalReceipted)} sub={`${data.receiptCount} receipt${data.receiptCount === 1 ? "" : "s"}`} tone="#1B2A3D" />
           </div>
 
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
+            <KpiCard icon={<Receipt size={15} />} label="Total expenses" value={money(data.totalExpenses)} sub={`${(expenses || []).length} expense${(expenses || []).length === 1 ? "" : "s"} logged`} tone="#B5482F" />
+            <KpiCard icon={<TrendingUp size={15} />} label="Net profit (paid − expenses)" value={money(data.netProfit)} tone={data.netProfit < 0 ? "#B5482F" : "#3D6B5C"} />
+          </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-4 mb-4">
             <div className="border border-[#E4DFD3] rounded-lg p-4.5 bg-[#FFFDF9]">
-              <div className={panelTitleClass}>Revenue, last 6 months</div>
+              <div className={panelTitleClass}>Revenue &amp; expenses, last 6 months</div>
               <div className="h-[220px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={data.monthData} margin={{ top: 6, right: 8, left: -14, bottom: 0 }}>
@@ -114,6 +125,7 @@ export function Dashboard({ invoices, onOpen, onNewInvoice, onNewQuotation, onNe
                     <Legend wrapperStyle={{ fontSize: 12 }} />
                     <Bar dataKey="Invoiced" fill="#C9C3B0" radius={[3, 3, 0, 0]} />
                     <Bar dataKey="Collected" fill="#3D6B5C" radius={[3, 3, 0, 0]} />
+                    <Bar dataKey="Expenses" fill="#B5482F" radius={[3, 3, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -172,10 +184,11 @@ export function Dashboard({ invoices, onOpen, onNewInvoice, onNewQuotation, onNe
                     {data.recent.map((inv) => {
                       const isReceipt = inv.docType === "receipt";
                       const isQuote = inv.docType === "quotation";
+                      const isPO = inv.docType === "po";
                       const amount = isReceipt ? num(inv.amountReceived) : calcTotals(inv).total;
                       const status = isReceipt ? null : effectiveStatus(inv);
-                      const typeLabel = isReceipt ? "RCPT" : isQuote ? "QUOTE" : "INV";
-                      const typeColor = isReceipt ? "#1B2A3D" : isQuote ? "#8A6D3D" : "#3D6B5C";
+                      const typeLabel = isReceipt ? "RCPT" : isQuote ? "QUOTE" : isPO ? "PO" : "INV";
+                      const typeColor = isReceipt ? "#1B2A3D" : isQuote ? "#8A6D3D" : isPO ? "#6E6A5C" : "#3D6B5C";
                       return (
                         <tr key={inv.id} onClick={() => onOpen(inv.id)} className="border-t border-[#E4DFD3] cursor-pointer">
                           <td className="font-mono text-[10.5px] font-semibold whitespace-nowrap py-2.5 px-4" style={{ color: typeColor }}>{typeLabel}</td>

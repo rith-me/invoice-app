@@ -3,7 +3,7 @@
 import React from "react";
 import { ArrowLeft, Printer, Check, Send, X, FileText, Trash2 } from "lucide-react";
 import { calcTotals, effectiveStatus, fmtDate, money, num, rowAmount } from "@/lib/helpers";
-import { ActionBtn, Row, backBtnClass } from "@/components/ui/Primitives";
+import { ActionBtn, Badge, Row, backBtnClass } from "@/components/ui/Primitives";
 
 const labelInlineClass = "font-mono text-[10.5px] text-[#8A8574] uppercase tracking-[0.05em]";
 const printThClass = "text-left font-mono text-[9.5px] tracking-[0.04em] uppercase text-[#8A8574] font-semibold pb-1.5 pr-2";
@@ -15,11 +15,12 @@ export function InvoiceView({ invoice, settings, onBack, onEdit, onStatus, onDel
   const terms = (invoice.notes && invoice.notes.trim()) ? invoice.notes : settings.terms;
   const initials = (settings.businessName || "?").split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
   const isQuote = invoice.docType === "quotation";
+  const isPO = invoice.docType === "po";
 
   return (
     <div className="max-w-[820px]">
       <div className="no-print flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4.5">
-        <button onClick={onBack} className={backBtnClass}><ArrowLeft size={14} /> All invoices</button>
+        <button onClick={onBack} className={backBtnClass}><ArrowLeft size={14} /> All {isPO ? "purchase orders" : "invoices"}</button>
         <div className="flex gap-2 flex-wrap">
           {isQuote ? (
             <>
@@ -27,6 +28,13 @@ export function InvoiceView({ invoice, settings, onBack, onEdit, onStatus, onDel
               {status !== "accepted" && status !== "declined" && <ActionBtn icon={<Check size={13} />} label="Mark accepted" onClick={() => onStatus("accepted")} />}
               {status !== "declined" && status !== "accepted" && <ActionBtn icon={<X size={13} />} label="Mark declined" onClick={() => onStatus("declined")} />}
               {status === "accepted" && <ActionBtn icon={<FileText size={13} />} label="Convert to invoice" onClick={onConvert} />}
+            </>
+          ) : isPO ? (
+            <>
+              {invoice.status === "draft" && <ActionBtn icon={<Send size={13} />} label="Mark sent" onClick={() => onStatus("sent")} />}
+              {status !== "received" && status !== "paid" && status !== "cancelled" && <ActionBtn icon={<Check size={13} />} label="Mark received" onClick={() => onStatus("received")} />}
+              {status !== "paid" && status !== "cancelled" && <ActionBtn icon={<Check size={13} />} label="Mark paid to supplier" onClick={() => onStatus("paid")} />}
+              {status !== "cancelled" && status !== "paid" && <ActionBtn icon={<X size={13} />} label="Cancel" onClick={() => onStatus("cancelled")} />}
             </>
           ) : (
             <>
@@ -40,6 +48,12 @@ export function InvoiceView({ invoice, settings, onBack, onEdit, onStatus, onDel
           <button onClick={() => { if (confirm(`Delete ${invoice.quoteNumber}?`)) onDelete(); }} className="bg-transparent border border-[#DAD5C6] rounded-md px-2.5 py-1.5 text-[#B5482F]"><Trash2 size={13} /></button>
         </div>
       </div>
+
+      {!isPO && !isQuote && invoice.stockDeducted && (
+        <div className="no-print text-xs text-[#3D6B5C] bg-[#E3EDE8] border border-[#C8DCD2] rounded-md px-3 py-2 mb-3.5">
+          Inventory was deducted for this invoice's items.
+        </div>
+      )}
 
       <div className="print-sheet font-body bg-[#FFFDF9] border border-[#E4DFD3] rounded-[10px] px-5 py-8 sm:px-11 sm:py-10">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-6">
@@ -59,17 +73,19 @@ export function InvoiceView({ invoice, settings, onBack, onEdit, onStatus, onDel
             </div>
           </div>
           <div className="sm:text-right">
-            <div className="font-display text-[28px] font-bold text-[#1B2A3D] tracking-[0.02em]">{isQuote ? "QUOTATION" : "INVOICE"}</div>
+            <div className="font-display text-[28px] font-bold text-[#1B2A3D] tracking-[0.02em]">{isPO ? "PURCHASE ORDER" : isQuote ? "QUOTATION" : "INVOICE"}</div>
             <div className="font-mono text-xs text-[#6E6A5C] mt-1.5">
               <div>Date: {fmtDate(invoice.issueDate)}</div>
-              <div>{isQuote ? "Quote #" : "Invoice #"}: {invoice.quoteNumber}</div>
+              <div>{isPO ? "PO #" : isQuote ? "Quote #" : "Invoice #"}: {invoice.quoteNumber}</div>
               {invoice.customerId && <div>Customer ID: {invoice.customerId}</div>}
+              {isPO && invoice.expectedDate && <div>Expected: {fmtDate(invoice.expectedDate)}</div>}
             </div>
+            {isPO && <div className="mt-1.5 sm:flex sm:justify-end"><Badge status={status} /></div>}
           </div>
         </div>
 
         <div className="border-t-2 border-[#1B2A3D] border-b border-b-[#E4DFD3] py-3 mb-5 text-[13.5px]">
-          <div><span className={labelInlineClass}>To:</span> <strong>{invoice.clientName || "—"}</strong></div>
+          <div><span className={labelInlineClass}>{isPO ? "To (supplier):" : "To:"}</span> <strong>{invoice.clientName || "—"}</strong></div>
           {invoice.clientAddress && <div><span className={labelInlineClass}>Add:</span> {invoice.clientAddress}</div>}
           {invoice.clientPhone && <div><span className={labelInlineClass}>Phone:</span> {invoice.clientPhone}</div>}
         </div>
@@ -85,7 +101,7 @@ export function InvoiceView({ invoice, settings, onBack, onEdit, onStatus, onDel
                 <th className={`${printThClass} text-right`}>H</th>
                 <th className={`${printThClass} text-right`}>Qty</th>
                 <th className={`${printThClass} text-right`}>M²</th>
-                <th className={`${printThClass} text-right`}>Rate/m²</th>
+                <th className={`${printThClass} text-right`}>{isPO ? "Cost/m²" : "Rate/m²"}</th>
                 <th className={`${printThClass} text-right`}>Amount</th>
               </tr>
             </thead>
@@ -137,13 +153,13 @@ export function InvoiceView({ invoice, settings, onBack, onEdit, onStatus, onDel
         </div>
 
         <div className="flex justify-between mt-12">
-          <div className="text-[13px]">
-            <div className="border-b border-[#C9C3B0] w-40 mb-1.5 h-7" />
+          <div className={`text-[13px] ${isPO ? "text-center" : ""}`}>
+            <div className={`w-40 mb-1.5 h-7 border-b border-[#C9C3B0] ${isPO ? "font-display italic text-[#3D6B5C]" : ""}`}>{isPO ? settings.sellerName : ""}</div>
             Buyer
           </div>
           <div className="text-[13px] text-center">
-            <div className="w-40 mb-1.5 h-7 font-display italic text-[#3D6B5C] border-b border-[#C9C3B0]">{settings.sellerName}</div>
-            Seller
+            <div className={`w-40 mb-1.5 h-7 border-b border-[#C9C3B0] ${!isPO ? "font-display italic text-[#3D6B5C]" : ""}`}>{isPO ? "" : settings.sellerName}</div>
+            {isPO ? "Received by (supplier)" : "Seller"}
           </div>
         </div>
 
