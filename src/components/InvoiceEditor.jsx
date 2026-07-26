@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useMemo } from "react";
 import { ArrowLeft, X, Plus, Rows3 } from "lucide-react";
 import { uid, num, money, rowAmount, suggestM2, calcTotals, ITEM_CATEGORIES } from "@/lib/helpers";
 import { Field, TextInput, Row, inputClass, backBtnClass } from "@/components/ui/Primitives";
@@ -11,6 +11,11 @@ export function InvoiceEditor({ invoice, clients, items, onChange, onDone, onBac
   const { subtotal, discount, depositAmt, total } = calcTotals(invoice);
   const depositMode = invoice.depositMode || "percent";
   const depositDisplayValue = invoice.depositValue !== undefined && invoice.depositValue !== "" ? invoice.depositValue : (invoice.depositPct ?? 0);
+  const isPO = invoice.docType === "po";
+  const isQuote = invoice.docType === "quotation";
+  const suppliers = useMemo(() => [...new Set(items.map((it) => it.supplierName).filter(Boolean))], [items]);
+  const docLabel = isPO ? "purchase order" : isQuote ? "quotation" : "invoice";
+  const numberLabel = isPO ? "PO #" : isQuote ? "Quote #" : "Invoice #";
 
   function setRow(rowId, patch) {
     onChange({ rows: invoice.rows.map((r) => (r.id === rowId ? { ...r, ...patch } : r)) });
@@ -29,7 +34,9 @@ export function InvoiceEditor({ invoice, clients, items, onChange, onDone, onBac
   function addItemFromCatalog(itemId) {
     const it = items.find((i) => i.id === itemId);
     if (!it) return;
-    onChange({ rows: [...invoice.rows, { id: uid(), kind: "item", desc: it.desc, code: it.code || "", w: "", h: "", qty: 1, m2: "", rate: num(it.rate) }] });
+    const patch = { rows: [...invoice.rows, { id: uid(), kind: "item", desc: it.desc, code: it.code || "", w: "", h: "", qty: 1, m2: "", rate: isPO ? num(it.cost) : num(it.rate) }] };
+    if (isPO && !invoice.clientName && it.supplierName) patch.clientName = it.supplierName;
+    onChange(patch);
   }
   function addSection() {
     onChange({ rows: [...invoice.rows, { id: uid(), kind: "section", label: "" }] });
@@ -44,31 +51,43 @@ export function InvoiceEditor({ invoice, clients, items, onChange, onDone, onBac
 
   return (
     <div className="max-w-[860px]">
-      <button onClick={onBack} className={`no-print ${backBtnClass}`}><ArrowLeft size={14} /> All invoices</button>
+      <button onClick={onBack} className={`no-print ${backBtnClass}`}><ArrowLeft size={14} /> All {isPO ? "purchase orders" : "invoices"}</button>
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-baseline gap-3 my-3.5 mb-5">
-        <h1 className="font-display text-2xl font-semibold m-0">Editing {invoice.docType === "quotation" ? "quotation" : "invoice"} {invoice.quoteNumber}</h1>
+        <h1 className="font-display text-2xl font-semibold m-0">Editing {docLabel} {invoice.quoteNumber}</h1>
         <button onClick={onDone} className="self-start bg-[#1B2A3D] text-[#FAF8F3] border-none px-4.5 py-2 rounded-md text-[13.5px] font-semibold">Done</button>
       </div>
 
       <div className="flex flex-wrap gap-4 mb-2.5">
-        <div className="w-full sm:w-40"><Field label={invoice.docType === "quotation" ? "Quote #" : "Invoice #"}><TextInput value={invoice.quoteNumber} onChange={(e) => onChange({ quoteNumber: e.target.value })} /></Field></div>
-        <div className="w-full sm:w-40"><Field label="Customer ID"><TextInput value={invoice.customerId} onChange={(e) => onChange({ customerId: e.target.value })} /></Field></div>
+        <div className="w-full sm:w-40"><Field label={numberLabel}><TextInput value={invoice.quoteNumber} onChange={(e) => onChange({ quoteNumber: e.target.value })} /></Field></div>
+        {!isPO && <div className="w-full sm:w-40"><Field label="Customer ID"><TextInput value={invoice.customerId} onChange={(e) => onChange({ customerId: e.target.value })} /></Field></div>}
         <div className="w-full sm:w-40"><Field label="Date"><TextInput type="date" value={invoice.issueDate} onChange={(e) => onChange({ issueDate: e.target.value })} /></Field></div>
+        {isPO && <div className="w-full sm:w-40"><Field label="Expected delivery"><TextInput type="date" value={invoice.expectedDate} onChange={(e) => onChange({ expectedDate: e.target.value })} /></Field></div>}
       </div>
 
       <div className="flex flex-wrap gap-4 mb-4.5">
-        <div className="w-full sm:w-60">
-          <Field label="Client">
-            <select value={invoice.clientId || ""} onChange={(e) => pickClient(e.target.value)} className={inputClass}>
-              <option value="">Select client…</option>
-              {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-          </Field>
-        </div>
-        <div className="flex-1 min-w-[200px]"><Field label="To (name)"><TextInput value={invoice.clientName} onChange={(e) => onChange({ clientName: e.target.value })} /></Field></div>
+        {isPO ? (
+          <div className="flex-1 min-w-[200px]">
+            <Field label="Supplier name">
+              <TextInput list="po-suppliers" value={invoice.clientName} onChange={(e) => onChange({ clientName: e.target.value })} placeholder="e.g. ABC Fabric Supply" />
+              <datalist id="po-suppliers">
+                {suppliers.map((s) => <option key={s} value={s} />)}
+              </datalist>
+            </Field>
+          </div>
+        ) : (
+          <div className="w-full sm:w-60">
+            <Field label="Client">
+              <select value={invoice.clientId || ""} onChange={(e) => pickClient(e.target.value)} className={inputClass}>
+                <option value="">Select client…</option>
+                {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </Field>
+          </div>
+        )}
+        {!isPO && <div className="flex-1 min-w-[200px]"><Field label="To (name)"><TextInput value={invoice.clientName} onChange={(e) => onChange({ clientName: e.target.value })} /></Field></div>}
         <div className="w-full sm:w-40"><Field label="Phone"><TextInput value={invoice.clientPhone} onChange={(e) => onChange({ clientPhone: e.target.value })} /></Field></div>
       </div>
-      <Field label="Address"><TextInput value={invoice.clientAddress} onChange={(e) => onChange({ clientAddress: e.target.value })} /></Field>
+      <Field label={isPO ? "Supplier address" : "Address"}><TextInput value={invoice.clientAddress} onChange={(e) => onChange({ clientAddress: e.target.value })} /></Field>
 
       <div className="border border-[#E4DFD3] rounded-lg overflow-hidden mt-3 mb-3">
         <div className="overflow-x-auto">
@@ -82,7 +101,7 @@ export function InvoiceEditor({ invoice, clients, items, onChange, onDone, onBac
                 <th className={`${thClass} w-[60px]`}>H</th>
                 <th className={`${thClass} w-[55px]`}>Qty</th>
                 <th className={`${thClass} w-[65px]`}>M²</th>
-                <th className={`${thClass} w-20`}>Rate/m²</th>
+                <th className={`${thClass} w-20`}>{isPO ? "Cost/m²" : "Rate/m²"}</th>
                 <th className={`${thClass} w-[90px]`}>Amount</th>
                 <th className={`${thClass} w-8`}></th>
               </tr>
@@ -142,13 +161,13 @@ export function InvoiceEditor({ invoice, clients, items, onChange, onDone, onBac
                 if (catItems.length === 0) return null;
                 return (
                   <optgroup key={cat} label={cat}>
-                    {catItems.map((it) => <option key={it.id} value={it.id}>{it.desc}{it.code ? ` (${it.code})` : ""} — {money(num(it.rate))}</option>)}
+                    {catItems.map((it) => <option key={it.id} value={it.id}>{it.desc}{it.code ? ` (${it.code})` : ""} — {isPO ? "cost " : ""}{money(num(isPO ? it.cost : it.rate))}</option>)}
                   </optgroup>
                 );
               })}
               {items.some((it) => !it.category) && (
                 <optgroup label="Uncategorized">
-                  {items.filter((it) => !it.category).map((it) => <option key={it.id} value={it.id}>{it.desc}{it.code ? ` (${it.code})` : ""} — {money(num(it.rate))}</option>)}
+                  {items.filter((it) => !it.category).map((it) => <option key={it.id} value={it.id}>{it.desc}{it.code ? ` (${it.code})` : ""} — {isPO ? "cost " : ""}{money(num(isPO ? it.cost : it.rate))}</option>)}
                 </optgroup>
               )}
             </select>
