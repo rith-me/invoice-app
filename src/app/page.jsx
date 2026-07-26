@@ -238,4 +238,5 @@ export default function InvoicingApp() {
       <Toast message={toast} />
     </div>
   );
+  
 }
