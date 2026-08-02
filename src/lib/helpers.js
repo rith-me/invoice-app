@@ -15,6 +15,20 @@ export const todayISO = () => new Date().toISOString().slice(0, 10);
 export const fmtDate = (iso) =>
   iso ? new Date(iso + "T00:00:00").toLocaleDateString(undefined, { day: "2-digit", month: "2-digit", year: "numeric" }) : "—";
 
+// Adds `months` to an ISO date string ("YYYY-MM-DD"), returning another ISO
+// date string. Built on local midnight (matching fmtDate's parsing) so it's
+// not affected by the browser's timezone. Overflowing the target month's day
+// count (e.g. Jan 31 + 1 month) rolls forward per native Date behavior —
+// e.g. "2026-01-31" + 1 month becomes "2026-03-03", not "2026-02-28".
+export function addMonths(iso, months) {
+  if (!iso) return "";
+  const [y, m, d] = iso.split("-").map(Number);
+  const date = new Date(y, m - 1 + num(months), d);
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const dd = String(date.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
 export const STATUS = {
   draft: { label: "Draft", color: "#7A7566", bg: "#EDEAE2" },
   sent: { label: "Sent", color: "#3D6B5C", bg: "#E3EDE8" },
@@ -116,6 +130,12 @@ export const DEFAULT_SETTINGS = {
   logoDataUrl: "",
   terms: "- Goods cannot be refunded\n- Leadtime 10-15 days after confirmed",
   thanksNote: "Thank you for your business!",
+  exchangeRate: "",
+  showKHR: false,
+  khqrPayload: "",
+  authMode: "none",
+  pinCode: "",
+  users: [],
 };
 
 export const ITEM_UNITS = [
@@ -130,6 +150,8 @@ export const CATEGORY_COLORS = {
   Curtain: { color: "#8A6D3D", bg: "#F3EBDA" },
   Blinds: { color: "#3D6B5C", bg: "#E3EDE8" },
 };
+
+
 
 export function marginPct(rate, cost) {
   const r = num(rate), c = num(cost);

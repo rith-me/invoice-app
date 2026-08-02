@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { calcTotals, nextDocNumber, todayISO, uid, num, DEFAULT_SETTINGS } from "@/lib/helpers";
-import { loadAll, saveClients, saveInvoices, saveItems, saveSettings, saveExpenses } from "@/lib/storage";
+import { loadAll, saveClients, saveInvoices, saveItems, saveSettings, saveExpenses, saveSchedule, saveTrash } from "@/lib/storage";
 import { Sidebar, MobileNav } from "@/components/layout/Sidebar";
 import { Toast } from "@/components/layout/Toast";
 import { Dashboard } from "@/components/Dashboard";
@@ -17,6 +17,10 @@ import { InvoiceEditor } from "@/components/InvoiceEditor";
 import { InvoiceView } from "@/components/InvoiceView";
 import { ReceiptEditor } from "@/components/ReceiptEditor";
 import { ReceiptView } from "@/components/ReceiptView";
+import { SchedulePanel } from "@/components/SchedulePanel";
+import { AuthGate } from "@/components/AuthGate";
+import { WarrantyPanel } from "@/components/WarrantyPanel";
+import { TrashPanel } from "@/components/TrashPanel";
 
 export default function InvoicingApp() {
   const [loading, setLoading] = useState(true);
@@ -29,6 +33,12 @@ export default function InvoicingApp() {
   const [activeInvoiceId, setActiveInvoiceId] = useState(null);
   const [toast, setToast] = useState(null);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [schedule, setSchedule] = useState([]);
+  const [trash, setTrash] = useState([]);
+
+  // App lock — re-evaluated fresh every time the app loads, never persisted.
+  const [unlocked, setUnlocked] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
 
   useEffect(() => {
     loadAll().then((data) => {
@@ -37,6 +47,11 @@ export default function InvoicingApp() {
       setSettings(data.settings);
       setItems(data.items);
       setExpenses(data.expenses || []);
+      setSchedule(data.schedule || []);
+      setTrash(data.trash || []);
+      // No lock configured (or authMode missing/"none") -> start unlocked.
+      // Otherwise AuthGate takes over until onUnlock fires.
+      setUnlocked(!data.settings?.authMode || data.settings.authMode === "none");
       setLoading(false);
     });
   }, []);
@@ -51,6 +66,37 @@ export default function InvoicingApp() {
   const updateSettings = useCallback((next) => { setSettings(next); saveSettings(next); }, []);
   const updateItems = useCallback((next) => { setItems(next); saveItems(next); }, []);
   const updateExpenses = useCallback((next) => { setExpenses(next); saveExpenses(next); }, []);
+  const updateSchedule = useCallback((next) => { setSchedule(next); saveSchedule(next); }, []);
+  const updateTrash = useCallback((next) => { setTrash(next); saveTrash(next); }, []);
+
+  // Shared entry point for "delete" across every panel: stash a copy of the
+  // deleted thing in trash (with enough info to restore it) rather than
+  // losing it outright. `type` matches TRASH_TYPE_LABELS in TrashPanel.
+  const moveToTrash = useCallback((type, label, data) => {
+    const entry = { id: uid(), type, label, deletedAt: new Date().toISOString(), data };
+    setTrash((t) => {
+      const next = [entry, ...t];
+      saveTrash(next);
+      return next;
+    });
+  }, []);
+
+  const handleUnlock = useCallback((user) => {
+    setCurrentUser(user);
+    setUnlocked(true);
+  }, []);
+
+  const handleDisablePin = useCallback(() => {
+    const next = { ...settings, authMode: "none", pinCode: "" };
+    updateSettings(next);
+    setUnlocked(true);
+  }, [settings, updateSettings]);
+
+  const handleDisableUsers = useCallback(() => {
+    const next = { ...settings, authMode: "none" };
+    updateSettings(next);
+    setUnlocked(true);
+  }, [settings, updateSettings]);
 
   const activeInvoice = useMemo(() => invoices.find((i) => i.id === activeInvoiceId) || null, [invoices, activeInvoiceId]);
 
@@ -157,7 +203,7 @@ export default function InvoicingApp() {
     (doc.rows || []).filter((r) => r.kind === "item").forEach((r) => {
       const match = items.find((it) => {
         if (r.code && it.code) return it.code.trim().toLowerCase() === r.code.trim().toLowerCase();
-        return it.desc.trim().toLowerCase() === (r.desc || "").trim().toLowerCase();
+        return (it.desc || "").trim().toLowerCase() === (r.desc || "").trim().toLowerCase();
       });
       if (!match) return;
       const qty = num(r.m2) > 0 ? num(r.m2) : num(r.qty);
@@ -175,6 +221,7 @@ export default function InvoicingApp() {
     if (doc && doc.docType === "invoice" && doc.stockDeducted) {
       adjustStock(doc, 1);
     }
+    if (doc) moveToTrash(doc.docType || "invoice", doc.clientName || doc.quoteNumber, doc);
     updateInvoices(invoices.filter((i) => i.id !== id));
     if (activeInvoiceId === id) {
       const dt = doc?.docType;
@@ -220,11 +267,46 @@ export default function InvoicingApp() {
     setView(nextView);
   }
 
+  // Restores a trashed entry back into its own list (clients/items/schedule/
+  // invoices) and removes it from trash. If its origin list has since changed
+  // shape in a way that would make the restored copy invalid, this still puts
+  // it back as-is — the user can edit it after restoring.
+  function restoreFromTrash(id) {
+    const entry = trash.find((t) => t.id === id);
+    if (!entry) return;
+    if (entry.type === "client") updateClients([entry.data, ...clients]);
+    else if (entry.type === "item") updateItems([entry.data, ...items]);
+    else if (entry.type === "schedule") updateSchedule([entry.data, ...schedule]);
+    else if (["invoice", "quotation", "receipt", "po"].includes(entry.type)) updateInvoices([entry.data, ...invoices]);
+    updateTrash(trash.filter((t) => t.id !== id));
+    showToast("Restored");
+  }
+
+  function deleteForever(id) {
+    updateTrash(trash.filter((t) => t.id !== id));
+  }
+
+  function emptyTrash() {
+    updateTrash([]);
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen w-full bg-[#FAF8F3] text-[#1B2A3D] font-body">
         <div className="font-mono text-[#8A8574] text-[13px]">Loading ledger…</div>
       </div>
+    );
+  }
+
+  if (!unlocked) {
+    return (
+      <AuthGate
+        settings={settings}
+        unlocked={unlocked}
+        onUnlock={handleUnlock}
+        onDisablePin={handleDisablePin}
+        onDisableUsers={handleDisableUsers}
+      />
     );
   }
 
@@ -324,6 +406,25 @@ export default function InvoicingApp() {
             onDelete={() => deleteInvoice(activeInvoice.id)}
             onConvert={() => convertToInvoice(activeInvoice.id)}
             onConvertToReceipt={() => convertToReceipt(activeInvoice.id)}
+          />
+        )}
+        {view === "schedule" && (
+          <SchedulePanel
+            schedule={schedule}
+            updateSchedule={updateSchedule}
+            clients={clients}
+            showToast={showToast}
+            onTrash={(label, item) => moveToTrash("schedule", label, item)}
+          />
+        )}
+        {view === "warranty" && <WarrantyPanel invoices={invoices} items={items} />}
+
+        {view === "trash" && (
+          <TrashPanel
+            trash={trash}
+            onRestore={restoreFromTrash}
+            onDeleteForever={deleteForever}
+            onEmptyTrash={emptyTrash}
           />
         )}
       </div>
