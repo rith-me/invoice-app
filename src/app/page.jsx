@@ -50,8 +50,16 @@ export default function InvoicingApp() {
       setSchedule(data.schedule || []);
       setTrash(data.trash || []);
       // No lock configured (or authMode missing/"none") -> start unlocked.
+      // Also treat an incompletely-configured lock (mode set to "pin" but no
+      // pinCode saved yet, or "users" with zero accounts) as unlocked — the
+      // alternative is AuthGate rendering null with nothing to unlock
+      // through, which would strand the person on a permanent blank screen.
       // Otherwise AuthGate takes over until onUnlock fires.
-      setUnlocked(!data.settings?.authMode || data.settings.authMode === "none");
+      const mode = data.settings?.authMode;
+      const lockIsUsable =
+        (mode === "pin" && !!data.settings?.pinCode) ||
+        (mode === "users" && (data.settings?.users || []).length > 0);
+      setUnlocked(!lockIsUsable);
       setLoading(false);
     });
   }, []);
