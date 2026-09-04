@@ -142,5 +142,3 @@ export function AuthGate({ settings, unlocked, onUnlock, onDisablePin, onDisable
 
   return null;
 }
-
-

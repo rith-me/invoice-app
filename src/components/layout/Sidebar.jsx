@@ -4,15 +4,40 @@ import React from "react";
 import { FileText, Users, Settings as SettingsIcon2, LayoutDashboard, Package, X, BarChart3, Truck, Receipt, CalendarDays, ShieldCheck, Trash2 } from "lucide-react";
 import { money } from "@/lib/helpers";
 
-function NavButton({ active, icon, label, onClick }) {
+const NAV_ICON_COLORS = {
+  dashboard: "#4F46E5",
+  reports: "#0369A1",
+  invoices: "#16A34A",
+  quotations: "#EA580C",
+  receipts: "#9333EA",
+  "purchase-orders": "#2563EB",
+  expenses: "#E11D48",
+  schedule: "#0891B2",
+  warranty: "#15803D",
+  clients: "#C05621",
+  items: "#7C3AED",
+  settings: "#4B5563",
+  trash: "#DC2626",
+};
+
+function NavButton({ active, icon: Icon, iconColor, label, onClick }) {
+  const activeStyle = active
+    ? {
+        backgroundColor: `${iconColor}1A`, // ~10% opacity background
+        color: iconColor,
+        fontWeight: 600,
+      }
+    : {};
+
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-2.5 px-2.5 py-2 rounded-md border-none text-left text-[13.5px] font-body ${
-        active ? "bg-[#EDEAE2] text-[#1B2A3D] font-semibold" : "bg-transparent text-[#6E6A5C] font-normal"
+      style={activeStyle}
+      className={`flex items-center gap-2.5 px-2.5 py-2 rounded-md border-none text-left text-[13.5px] font-body transition-colors ${
+        active ? "" : "bg-transparent text-[#6E6A5C] font-normal hover:bg-[#EDEAE2]/50"
       }`}
     >
-      {icon}
+      <Icon size={15} color={iconColor} />
       {label}
     </button>
   );
@@ -22,19 +47,19 @@ function NavLinks({ view, setView, onNavigate, trashCount }) {
   const go = (v) => { setView(v); onNavigate?.(); };
   return (
     <>
-      <NavButton active={view === "dashboard"} icon={<LayoutDashboard size={15} />} label="Dashboard" onClick={() => go("dashboard")} />
-      <NavButton active={view === "reports"} icon={<BarChart3 size={15} />} label="Reports" onClick={() => go("reports")} />
-      <NavButton active={view === "invoices"} icon={<FileText size={15} />} label="Invoices" onClick={() => go("invoices")} />
-      <NavButton active={view === "quotations"} icon={<FileText size={15} />} label="Quotations" onClick={() => go("quotations")} />
-      <NavButton active={view === "receipts"} icon={<FileText size={15} />} label="Receipts" onClick={() => go("receipts")} />
-      <NavButton active={view === "purchase-orders"} icon={<Truck size={15} />} label="Purchase Orders" onClick={() => go("purchase-orders")} />
-      <NavButton active={view === "expenses"} icon={<Receipt size={15} />} label="Expenses" onClick={() => go("expenses")} />
-      <NavButton active={view === "schedule"} icon={<CalendarDays size={15} />} label="Schedule" onClick={() => go("schedule")} />
-      <NavButton active={view === "warranty"} icon={<ShieldCheck size={15} />} label="Warranty" onClick={() => go("warranty")} />
-      <NavButton active={view === "clients"} icon={<Users size={15} />} label="Clients" onClick={() => go("clients")} />
-      <NavButton active={view === "items"} icon={<Package size={15} />} label="Items" onClick={() => go("items")} />
-      <NavButton active={view === "settings"} icon={<SettingsIcon2 size={15} />} label="Business info" onClick={() => go("settings")} />
-      <NavButton active={view === "trash"} icon={<Trash2 size={15} />} label={`Trash${trashCount ? ` (${trashCount})` : ""}`} onClick={() => go("trash")} />
+      <NavButton active={view === "dashboard"} icon={LayoutDashboard} iconColor={NAV_ICON_COLORS.dashboard} label="Dashboard" onClick={() => go("dashboard")} />
+      <NavButton active={view === "reports"} icon={BarChart3} iconColor={NAV_ICON_COLORS.reports} label="Reports" onClick={() => go("reports")} />
+      <NavButton active={view === "invoices"} icon={FileText} iconColor={NAV_ICON_COLORS.invoices} label="Invoices" onClick={() => go("invoices")} />
+      <NavButton active={view === "quotations"} icon={FileText} iconColor={NAV_ICON_COLORS.quotations} label="Quotations" onClick={() => go("quotations")} />
+      <NavButton active={view === "receipts"} icon={FileText} iconColor={NAV_ICON_COLORS.receipts} label="Receipts" onClick={() => go("receipts")} />
+      <NavButton active={view === "purchase-orders"} icon={Truck} iconColor={NAV_ICON_COLORS["purchase-orders"]} label="Purchase Orders" onClick={() => go("purchase-orders")} />
+      <NavButton active={view === "expenses"} icon={Receipt} iconColor={NAV_ICON_COLORS.expenses} label="Expenses" onClick={() => go("expenses")} />
+      <NavButton active={view === "schedule"} icon={CalendarDays} iconColor={NAV_ICON_COLORS.schedule} label="Schedule" onClick={() => go("schedule")} />
+      <NavButton active={view === "warranty"} icon={ShieldCheck} iconColor={NAV_ICON_COLORS.warranty} label="Warranty" onClick={() => go("warranty")} />
+      <NavButton active={view === "clients"} icon={Users} iconColor={NAV_ICON_COLORS.clients} label="Clients" onClick={() => go("clients")} />
+      <NavButton active={view === "items"} icon={Package} iconColor={NAV_ICON_COLORS.items} label="Items" onClick={() => go("items")} />
+      <NavButton active={view === "settings"} icon={SettingsIcon2} iconColor={NAV_ICON_COLORS.settings} label="Business info" onClick={() => go("settings")} />
+      <NavButton active={view === "trash"} icon={Trash2} iconColor={NAV_ICON_COLORS.trash} label={`Trash${trashCount ? ` (${trashCount})` : ""}`} onClick={() => go("trash")} />
     </>
   );
 }
@@ -69,10 +94,6 @@ function BrandBlock({ currentUser, onLogout, compact }) {
   );
 }
 
-/**
- * Desktop sidebar: a permanent 220px rail, visible from `lg` up.
- * On smaller screens this renders nothing — MobileNavDrawer takes over.
- */
 export function Sidebar({ view, setView, totalsSummary, trashCount, currentUser, onLogout }) {
   return (
     <div className="no-print hidden lg:flex w-[220px] shrink-0 border-r border-[#E4DFD3] px-4 py-6 flex-col gap-1">
@@ -84,11 +105,6 @@ export function Sidebar({ view, setView, totalsSummary, trashCount, currentUser,
   );
 }
 
-/**
- * Mobile top bar + slide-in drawer, visible below `lg`. The hamburger button
- * lives in the top bar; tapping it (or a nav item, or the backdrop) closes
- * the drawer.
- */
 export function MobileNav({ view, setView, totalsSummary, open, setOpen, trashCount, currentUser, onLogout }) {
   return (
     <div className="no-print lg:hidden">

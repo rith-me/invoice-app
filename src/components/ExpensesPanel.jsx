@@ -6,14 +6,23 @@ import { uid, todayISO, fmtDate, money, num, calcTotals, PAYMENT_METHODS } from 
 import { Field, TextInput, EmptyState, inputClass } from "@/components/ui/Primitives";
 
 export const EXPENSE_CATEGORIES = ["Rent", "Utilities", "Wages", "Materials", "Transport", "Marketing", "Other"];
+// export const EXPENSE_CATEGORY_COLORS = {
+//   Rent: { color: "#8A6D3D", bg: "#F3EBDA" },
+//   Utilities: { color: "#3D6B5C", bg: "#E3EDE8" },
+//   Wages: { color: "#1B2A3D", bg: "#E0E5EC" },
+//   Materials: { color: "#6E6A5C", bg: "#EDEAE2" },
+//   Transport: { color: "#4A6B8A", bg: "#DFE7EE" },
+//   Marketing: { color: "#8A4A6B", bg: "#EEDFE7" },
+//   Other: { color: "#7A7566", bg: "#EDEAE2" },
+// };
 export const EXPENSE_CATEGORY_COLORS = {
-  Rent: { color: "#8A6D3D", bg: "#F3EBDA" },
-  Utilities: { color: "#3D6B5C", bg: "#E3EDE8" },
-  Wages: { color: "#1B2A3D", bg: "#E0E5EC" },
-  Materials: { color: "#6E6A5C", bg: "#EDEAE2" },
-  Transport: { color: "#4A6B8A", bg: "#DFE7EE" },
-  Marketing: { color: "#8A4A6B", bg: "#EEDFE7" },
-  Other: { color: "#7A7566", bg: "#EDEAE2" },
+  Rent: { color: "#B45309", bg: "#FEF3C7" },
+  Utilities: { color: "#0369A1", bg: "#DBEAFE" },
+  Wages: { color: "#4F46E5", bg: "#E0E7FF" },
+  Materials: { color: "#15803D", bg: "#D1FAE5" },
+  Transport: { color: "#0E7490", bg: "#CFFAFE" },
+  Marketing: { color: "#BE185D", bg: "#FCE7F3" },
+  Other: { color: "#6B7280", bg: "#E5E7EB" },
 };
 
 function ExpenseCategoryBadge({ category }) {

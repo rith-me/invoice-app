@@ -1,9 +1,22 @@
 "use client";
 
 import React from "react";
-import { ArrowLeft, Printer, Check, Send, X, FileText, Trash2 } from "lucide-react";
+import { ArrowLeft, Printer, Check, Send, X, FileText, Trash2, MessageCircle } from "lucide-react";
 import { calcTotals, effectiveStatus, fmtDate, money, num, rowAmount } from "@/lib/helpers";
 import { ActionBtn, Badge, Row, backBtnClass } from "@/components/ui/Primitives";
+
+// Inline helper fallback for KHR formatting if not exported from lib/helpers
+const formatKHR = (amount, rate) => `${Math.round(num(amount) * num(rate)).toLocaleString()} ៛`;
+
+export function shareViaWhatsApp(text, phone) {
+  const digits = (phone || "").replace(/[^0-9]/g, "");
+  const base = digits ? `https://wa.me/${digits}` : "https://wa.me/";
+  window.open(`${base}?text=${encodeURIComponent(text)}`, "_blank");
+}
+
+export function shareViaTelegram(text) {
+  window.open(`https://t.me/share/url?url=&text=${encodeURIComponent(text)}`, "_blank");
+}
 
 const labelInlineClass = "font-mono text-[10.5px] text-[#8A8574] uppercase tracking-[0.05em]";
 const printThClass = "text-left font-mono text-[9.5px] tracking-[0.04em] uppercase text-[#8A8574] font-semibold pb-1.5 pr-2";
@@ -17,11 +30,16 @@ export function InvoiceView({ invoice, settings, onBack, onEdit, onStatus, onDel
   const isQuote = invoice.docType === "quotation";
   const isPO = invoice.docType === "po";
 
+  const docLabelShare = isPO ? "Purchase Order" : isQuote ? "Quotation" : "Invoice";
+  const shareText = `${settings.businessName} — ${docLabelShare} ${invoice.quoteNumber}\n${isPO ? "Supplier" : "Client"}: ${invoice.clientName || "—"}\nDate: ${fmtDate(invoice.issueDate)}\nTotal: ${money(total)}${settings.showKHR && num(settings.exchangeRate) > 0 ? ` (≈ ${formatKHR(total, settings.exchangeRate)})` : ""}`;
+
   return (
     <div className="max-w-[820px]">
-      <div className="no-print flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4.5">
-        <button onClick={onBack} className={backBtnClass}><ArrowLeft size={14} /> All {isPO ? "purchase orders" : "invoices"}</button>
-        <div className="flex gap-2 flex-wrap">
+      <div className="no-print flex items-center justify-between gap-2 mb-4.5 overflow-x-auto whitespace-nowrap pb-1">
+        <button onClick={onBack} className={`${backBtnClass} shrink-0`}>
+          <ArrowLeft size={14} /> All {isPO ? "purchase orders" : "invoices"}
+        </button>
+        <div className="flex items-center gap-1.5 shrink-0">
           {isQuote ? (
             <>
               {invoice.status === "draft" && <ActionBtn icon={<Send size={13} />} label="Mark sent" onClick={() => onStatus("sent")} />}
@@ -40,12 +58,19 @@ export function InvoiceView({ invoice, settings, onBack, onEdit, onStatus, onDel
             <>
               {status !== "paid" && <ActionBtn icon={<Check size={13} />} label="Mark paid" onClick={() => onStatus("paid")} />}
               {invoice.status === "draft" && <ActionBtn icon={<Send size={13} />} label="Mark sent" onClick={() => onStatus("sent")} />}
-              {status === "paid" && <ActionBtn icon={<FileText size={13} />} label="Create receipt" onClick={onConvertToReceipt} />}
+              {status === "paid" && <ActionBtn icon={<FileText size={13} />} label="Create receipt" onClick={() => onConvertToReceipt()} />}
             </>
           )}
           <ActionBtn icon={<Printer size={13} />} label="Print / PDF" onClick={() => window.print()} />
+          <ActionBtn icon={<MessageCircle size={13} />} label="WhatsApp" onClick={() => shareViaWhatsApp(shareText, invoice.clientPhone)} />
+          <ActionBtn icon={<Send size={13} />} label="Telegram" onClick={() => shareViaTelegram(shareText)} />
           <ActionBtn icon={<FileText size={13} />} label="Edit" onClick={onEdit} />
-          <button onClick={() => { if (confirm(`Delete ${invoice.quoteNumber}?`)) onDelete(); }} className="bg-transparent border border-[#DAD5C6] rounded-md px-2.5 py-1.5 text-[#B5482F]"><Trash2 size={13} /></button>
+          <button 
+            onClick={() => { if (confirm(`Delete ${invoice.quoteNumber}?`)) onDelete(); }} 
+            className="bg-transparent border border-[#DAD5C6] rounded-md px-2.5 py-1.5 text-[#B5482F] hover:bg-[#B5482F]/10 shrink-0"
+          >
+            <Trash2 size={13} />
+          </button>
         </div>
       </div>
 
@@ -73,7 +98,9 @@ export function InvoiceView({ invoice, settings, onBack, onEdit, onStatus, onDel
             </div>
           </div>
           <div className="sm:text-right">
-            <div className="font-display text-[28px] font-bold text-[#1B2A3D] tracking-[0.02em]">{isPO ? "PURCHASE ORDER" : isQuote ? "QUOTATION" : "INVOICE"}</div>
+            <div className="font-display text-[28px] font-bold text-[#1B2A3D] tracking-[0.02em]">
+              {isPO ? "PURCHASE ORDER" : isQuote ? "QUOTATION" : "INVOICE"}
+            </div>
             <div className="font-mono text-xs text-[#6E6A5C] mt-1.5">
               <div>Date: {fmtDate(invoice.issueDate)}</div>
               <div>{isPO ? "PO #" : isQuote ? "Quote #" : "Invoice #"}: {invoice.quoteNumber}</div>

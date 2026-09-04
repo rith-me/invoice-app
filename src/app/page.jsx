@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { calcTotals, nextDocNumber, todayISO, uid, num, DEFAULT_SETTINGS } from "@/lib/helpers";
+import { calcTotals, nextDocNumber, todayISO, uid, num, DEFAULT_SETTINGS, generateDueRecurring, showInPageMessage } from "@/lib/helpers";
+// import { calcTotals, nextDocNumber, todayISO, uid, num, DEFAULT_SETTINGS } from "@/lib/helpers";
 import { loadAll, saveClients, saveInvoices, saveItems, saveSettings, saveExpenses, saveSchedule, saveTrash } from "@/lib/storage";
 import { Sidebar, MobileNav } from "@/components/layout/Sidebar";
 import { Toast } from "@/components/layout/Toast";
@@ -69,13 +70,25 @@ export default function InvoicingApp() {
     setTimeout(() => setToast(null), 1800);
   }, []);
 
-  const updateInvoices = useCallback((next) => { setInvoices(next); saveInvoices(next); }, []);
-  const updateClients = useCallback((next) => { setClients(next); saveClients(next); }, []);
-  const updateSettings = useCallback((next) => { setSettings(next); saveSettings(next); }, []);
-  const updateItems = useCallback((next) => { setItems(next); saveItems(next); }, []);
-  const updateExpenses = useCallback((next) => { setExpenses(next); saveExpenses(next); }, []);
-  const updateSchedule = useCallback((next) => { setSchedule(next); saveSchedule(next); }, []);
-  const updateTrash = useCallback((next) => { setTrash(next); saveTrash(next); }, []);
+  
+  // const updateInvoices = useCallback((next) => { setInvoices(next); saveInvoices(next); }, []);
+  // const updateClients = useCallback((next) => { setClients(next); saveClients(next); }, []);
+  // const updateSettings = useCallback((next) => { setSettings(next); saveSettings(next); }, []);
+  // const updateItems = useCallback((next) => { setItems(next); saveItems(next); }, []);
+  // const updateExpenses = useCallback((next) => { setExpenses(next); saveExpenses(next); }, []);
+  // const updateSchedule = useCallback((next) => { setSchedule(next); saveSchedule(next); }, []);
+  // const updateTrash = useCallback((next) => { setTrash(next); saveTrash(next); }, []);
+
+  const warnIfSaveFailed = useCallback((ok) => {
+    if (!ok) showInPageMessage("Couldn't save — your last change may not persist. Check your connection and try again, or export a backup from Business info once it's working.");
+  }, []);
+  const updateInvoices = useCallback((next) => { setInvoices(next); saveInvoices(next).then(warnIfSaveFailed); }, [warnIfSaveFailed]);
+  const updateClients = useCallback((next) => { setClients(next); saveClients(next).then(warnIfSaveFailed); }, [warnIfSaveFailed]);
+  const updateSettings = useCallback((next) => { setSettings(next); saveSettings(next).then(warnIfSaveFailed); }, [warnIfSaveFailed]);
+  const updateItems = useCallback((next) => { setItems(next); saveItems(next).then(warnIfSaveFailed); }, [warnIfSaveFailed]);
+  const updateExpenses = useCallback((next) => { setExpenses(next); saveExpenses(next).then(warnIfSaveFailed); }, [warnIfSaveFailed]);
+  const updateSchedule = useCallback((next) => { setSchedule(next); saveSchedule(next).then(warnIfSaveFailed); }, [warnIfSaveFailed]);
+  const updateTrash = useCallback((next) => { setTrash(next); saveTrash(next).then(warnIfSaveFailed); }, [warnIfSaveFailed]);
 
   // Shared entry point for "delete" across every panel: stash a copy of the
   // deleted thing in trash (with enough info to restore it) rather than

@@ -4,6 +4,7 @@
 import { supabase } from "@/lib/supabaseClient";
 import { DEFAULT_SETTINGS } from "@/lib/helpers";
 
+
 async function loadTable(table) {
   const { data, error } = await supabase.from(table).select("*").order("created_at", { ascending: true });
   if (error) { console.error(`load ${table}:`, error.message); return []; }
@@ -39,55 +40,30 @@ export async function loadAll() {
 }
 
 // Full-replace sync: deletes everything currently in the table and re-inserts the
-// given list. Retries once on failure (matching a 400ms backoff), and now
-// returns true/false so callers can tell the user when a save didn't stick —
-// previously a failure only logged to the console, which nobody sees.
-async function saveTableOnce(table, rows) {
+// given list. Simple and safe for a single-user / small-team app; if you later need
+// multiple people editing at once, switch this to incremental upsert + delete-by-diff.
+async function saveTable(table, rows) {
   try {
     const { error: delErr } = await supabase.from(table).delete().not("id", "is", null);
     if (delErr) throw delErr;
     if (rows.length) {
       const payload = rows.map((r) => ({ id: r.id, data: r }));
-      const { error: insErr } = await supabase.from(table).insert(payload);
+      const { error: insErr } = await supabase.from(table).upsert(payload, { onConflict: "id" }); // was .insert(payload)
       if (insErr) throw insErr;
     }
-    return true;
-  } catch (e) {
-    console.error(`save ${table}:`, e.message || e);
-    return false;
-  }
-}
-async function saveTable(table, rows) {
-  for (let attempt = 1; attempt <= 2; attempt++) {
-    const ok = await saveTableOnce(table, rows);
-    if (ok) return true;
-    if (attempt === 1) await new Promise((r) => setTimeout(r, 400));
-  }
-  return false;
+  } catch (e) { console.error(`save ${table}:`, e.message || e); }
 }
 
-export async function saveClients(clients) { return saveTable("clients", clients); }
-export async function saveInvoices(invoices) { return saveTable("invoices", invoices); }
-export async function saveItems(items) { return saveTable("items", items); }
-export async function saveExpenses(expenses) { return saveTable("expenses", expenses); }
-export async function saveSchedule(schedule) { return saveTable("schedule", schedule); }
-export async function saveTrash(trash) { return saveTable("trash", trash); }
-
-async function saveSettingsOnce(settings) {
+export async function saveClients(clients) { await saveTable("clients", clients); }
+export async function saveInvoices(invoices) { await saveTable("invoices", invoices); }
+export async function saveItems(items) { await saveTable("items", items); }
+export async function saveSettings(settings) {
   try {
     const { error } = await supabase.from("settings").upsert({ id: 1, data: settings });
     if (error) throw error;
-    return true;
-  } catch (e) {
-    console.error("save settings:", e.message || e);
-    return false;
-  }
+  } catch (e) { console.error("save settings:", e.message || e); }
 }
-export async function saveSettings(settings) {
-  for (let attempt = 1; attempt <= 2; attempt++) {
-    const ok = await saveSettingsOnce(settings);
-    if (ok) return true;
-    if (attempt === 1) await new Promise((r) => setTimeout(r, 400));
-  }
-  return false;
-}
+
+export async function saveExpenses(expenses) { await saveTable("expenses", expenses); }
+export async function saveSchedule(schedule) { await saveTable("schedule", schedule); }
+export async function saveTrash(trash) { await saveTable("trash", trash); }

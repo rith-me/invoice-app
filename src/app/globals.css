@@ -1,5 +1,6 @@
 @import "tailwindcss";
 
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -26,17 +27,32 @@ body {
 }
 
 @media print {
-  .no-print {
-    display: none !important;
+  .no-print { display: none !important; }
+  html, body { height: auto !important; background: white !important; }
+  .app-shell {
+    display: block !important;
+    height: auto !important;
+    width: auto !important;
+    overflow: visible !important;
   }
-
-  body {
-    background: white;
+  .app-main {
+    overflow: visible !important;
+    height: auto !important;
+    padding: 0 !important;
   }
-
   .print-sheet {
+    width: 182mm !important;        /* A4 (210mm) minus 14mm margins each side */
+    max-width: none !important;
+    min-height: 269mm !important;   /* A4 (297mm) minus top/bottom margins */
     border: none !important;
-    border-radius: 0 !important;
     box-shadow: none !important;
+    padding: 12mm !important;
+    margin: 0 auto !important;
+    font-size: 13px !important;     /* on-screen sizing reads small once printed at actual A4 scale */
+    box-sizing: border-box !important;
+  }
+  @page {
+    size: A4;
+    margin: 14mm;
   }
 }

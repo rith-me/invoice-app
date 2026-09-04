@@ -29,13 +29,24 @@ export function addMonths(iso, months) {
   const dd = String(date.getDate()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd}`;
 }
+// export const STATUS = {
+//   draft: { label: "Draft", color: "#7A7566", bg: "#EDEAE2" },
+//   sent: { label: "Sent", color: "#3D6B5C", bg: "#E3EDE8" },
+//   paid: { label: "Paid", color: "#1B2A3D", bg: "#E0E5EC" },
+//   overdue: { label: "Overdue", color: "#B5482F", bg: "#F5E4DE" },
+//   accepted: { label: "Accepted", color: "#3D6B5C", bg: "#E3EDE8" },
+//   declined: { label: "Declined", color: "#B5482F", bg: "#F5E4DE" },
+// };
+
 export const STATUS = {
-  draft: { label: "Draft", color: "#7A7566", bg: "#EDEAE2" },
-  sent: { label: "Sent", color: "#3D6B5C", bg: "#E3EDE8" },
-  paid: { label: "Paid", color: "#1B2A3D", bg: "#E0E5EC" },
-  overdue: { label: "Overdue", color: "#B5482F", bg: "#F5E4DE" },
-  accepted: { label: "Accepted", color: "#3D6B5C", bg: "#E3EDE8" },
-  declined: { label: "Declined", color: "#B5482F", bg: "#F5E4DE" },
+  draft: { label: "Draft", color: "#6B7280", bg: "#E5E7EB" },
+  sent: { label: "Sent", color: "#0369A1", bg: "#DBEAFE" },
+  paid: { label: "Paid", color: "#15803D", bg: "#D1FAE5" },
+  overdue: { label: "Overdue", color: "#B91C1C", bg: "#FEE2E2" },
+  accepted: { label: "Accepted", color: "#15803D", bg: "#D1FAE5" },
+  declined: { label: "Declined", color: "#B91C1C", bg: "#FEE2E2" },
+  received: { label: "Received", color: "#7E22CE", bg: "#F3E8FF" },
+  cancelled: { label: "Cancelled", color: "#B91C1C", bg: "#FEE2E2" },
 };
 
 export function effectiveStatus(inv) {
@@ -146,11 +157,15 @@ export const ITEM_UNITS = [
   { value: "set", label: "set" },
 ];
 export const ITEM_CATEGORIES = ["Curtain", "Blinds"];
-export const CATEGORY_COLORS = {
-  Curtain: { color: "#8A6D3D", bg: "#F3EBDA" },
-  Blinds: { color: "#3D6B5C", bg: "#E3EDE8" },
-};
+// export const CATEGORY_COLORS = {
+//   Curtain: { color: "#8A6D3D", bg: "#F3EBDA" },
+//   Blinds: { color: "#3D6B5C", bg: "#E3EDE8" },
+// };
 
+export const CATEGORY_COLORS = {
+  Curtain: { color: "#B45309", bg: "#FEF3C7" },
+  Blinds: { color: "#0369A1", bg: "#DBEAFE" },
+};
 
 
 export function marginPct(rate, cost) {
@@ -160,3 +175,28 @@ export function marginPct(rate, cost) {
 }
 
 export const PAYMENT_METHODS = ["Cash", "Bank Transfer", "Card", "Cheque", "Other"];
+// A lightweight, non-React warning banner — used when something needs to
+// surface a message (like a failed save) from outside component state,
+// e.g. a callback chained onto a save promise. Self-removing after 4.5s.
+export function showInPageMessage(msg) {
+  try {
+    const el = document.createElement("div");
+    el.textContent = msg;
+    el.style.cssText =
+      "position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1B2A3D;color:#FAF8F3;padding:12px 18px;border-radius:6px;font-family:sans-serif;font-size:13px;max-width:88vw;text-align:center;z-index:99999;box-shadow:0 6px 20px rgba(0,0,0,0.25);";
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 4500);
+  } catch (e) {
+    // Last resort only if DOM manipulation itself is unavailable
+    try { alert(msg); } catch (e2) {}
+  }
+}
+
+export function shareViaWhatsApp(text, phone) {
+  const digits = (phone || "").replace(/[^0-9]/g, "");
+  const base = digits ? `https://wa.me/${digits}` : "https://wa.me/";
+  window.open(`${base}?text=${encodeURIComponent(text)}`, "_blank");
+}
+export function shareViaTelegram(text) {
+  window.open(`https://t.me/share/url?url=&text=${encodeURIComponent(text)}`, "_blank");
+}
